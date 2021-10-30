@@ -26,9 +26,13 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Pcap init failed\n");
 		return -1;
 	}
+	int ret = 0;
+	ret = pcap_register("ip", ip_filter);
+	ret = pcap_register("port", port_filter);
+
 	pcap_data_t data;
 	// read POLL
-	int ret = pcap_process_poll(handle, &data, print_packet);
+	ret = pcap_process_poll(handle, &data, print_packet);
 
 	// destory
 	pcap_destory_handle(handle);

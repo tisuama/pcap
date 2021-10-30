@@ -27,10 +27,11 @@ lcov:
 	genhtml -o demo_web demo.info
 
 pcap:
-	gcc -g -c -o ldapexpr.o src/ldapexpr/ldapexpr.c
-	gcc -g -c -o pcap_manager.o src/pcap/pcap_manager.c -I src/ldapexpr/
-	gcc -g -c -o main.o src/demo/main.c -I src/pcap/ -I src/ldapexpr/
-	gcc -o pcap pcap_manager.o main.o ldapexpr.o
+	gcc -g -c -o ldapexpr.o src/filter/ldapexpr.c -I src/pcap/
+	gcc -g -c -o filter.o src/filter/filter.c -I src/pcap/
+	gcc -g -c -o pcap_manager.o src/pcap/pcap_manager.c -I src/filter/
+	gcc -g -c -o main.o src/demo/main.c -I src/pcap/ -I src/filter/
+	gcc -o pcap main.o pcap_manager.o ldapexpr.o filter.o
 
 ldap:
 	gcc -Wall -g -o ldap src/ldapexpr/ldapexpr.c

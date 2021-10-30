@@ -12,7 +12,7 @@
 #include <netinet/udp.h>
 #include <arpa/inet.h>
 
-#include "ldapexpr.h"
+#include "filter.h"
 
 #define MAX_PACKET_LEN 65536
 
@@ -64,9 +64,10 @@ typedef struct pcap_handle {
 }pcap_handle_t;
 
 typedef void (*pcap_cb)(pcap_data_t* pcap_data);
-typedef void (*compar)(pcap_data_t* pcap_data);
+typedef void (*hook)(pcap_data_t* pcap_data, const char* value, filter_st* fst);
 // 对外暴露的接口
 pcap_handle_t* pcap_open(const char* file_path, const char* fst_str);
+int pcap_register(const char* filter_name, hook hk);
 int  pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb);
 int  pcap_process_forward(pcap_handle_t* handle, pcap_data_t* data);
 void pcap_destory_handle(pcap_handle_t* handle);
