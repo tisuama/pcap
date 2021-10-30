@@ -53,7 +53,7 @@ typedef struct registed_hook{
     compar comp;
 } registed_hook_t;
 
-static registed_hook_t registed_hooks[MAX_registed_hook];
+registed_hook_t registed_hooks[MAX_registed_hook];
 
 static int  __pcap_read_done(read_context_t* ctx);
 static void __pcap_read_data(read_context_t* ctx);

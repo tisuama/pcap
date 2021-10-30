@@ -64,7 +64,7 @@ typedef struct pcap_handle {
 }pcap_handle_t;
 
 typedef void (*pcap_cb)(pcap_data_t* pcap_data);
-
+typedef void (*compar)(pcap_data_t* pcap_data);
 // 对外暴露的接口
 pcap_handle_t* pcap_open(const char* file_path, const char* fst_str);
 int  pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb);
