@@ -1,33 +1,33 @@
+BUILD_PATH=./build
 def:
-	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o pcap.o pcap.c
-	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o filter.o filter.c
-	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o demo.o demo.c
-	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o test_main.o test_main.c
-	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o xtest.o xtest.c
-	gcc -Wall -o demo demo.o filter.o pcap.o -lgcov
-	gcc -Wall -o test xtest.o test_main.o pcap.o filter.o -lgcov
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o ldapexpr.o src/filter/ldapexpr.c
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o filter.o src/filter/filter.c -I src/pcap/
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o xtest.o src/xtest/xtest.c
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o pcap_manager.o src/pcap/pcap_manager.c -I src/filter/
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o main.o src/demo/main.c -I src/pcap/ -I src/filter/
+	gcc -Wall -g -fprofile-arcs -ftest-coverage -c -o test_pcap.o src/test/test_pcap.c -I src/pcap/ -I src/filter/ -I src/xtest/
+	gcc -Wall -o test_pcap test_pcap.o filter.o pcap_manager.o xtest.o ldapexpr.o -lgcov
 
 clean: 
-	rm -f *.o *.gcda *.gcno *.gcov demo.info
+	rm -f *.o *.gcda *.gcno *.gcov  test_pcap.info
 	rm -f *.yml
-	rm -rf demo_web
-	rm -f demo
 	rm -f test
 	rm -rf pcap
 	rm -rf ldap
+	rm -rf test_pcap
 
 test: def
-	./test --fork
+	./test_pcap
 
 check:
-	valgrind --leak-check=full -v ./demo
+	valgrind --leak-check=full -v ./pcap
 
 lcov:
-	lcov -d ./ -t 'demo' -o 'demo.info' -b . -c
-	genhtml -o demo_web demo.info
+	lcov -d ./ -t 'test_pcap' -o 'test_pcap.info' -b . -c
+	genhtml -o pcap_web test_pcap.info
 
 pcap:
-	gcc -g -c -o ldapexpr.o src/filter/ldapexpr.c -I src/pcap/
+	gcc -g -c -o ldapexpr.o src/filter/ldapexpr.c
 	gcc -g -c -o filter.o src/filter/filter.c -I src/pcap/
 	gcc -g -c -o pcap_manager.o src/pcap/pcap_manager.c -I src/filter/
 	gcc -g -c -o main.o src/demo/main.c -I src/pcap/ -I src/filter/

@@ -1,9 +1,13 @@
 #ifndef FILTER_H
-#define FILTER_Hs
+#define FILTER_H
+
+#include <stdio.h>
+#include <stdlib.h>
 
 
-struct pcap_data_t;
-struct filter_st;
+typedef struct pcap_data pcap_data_t;
+typedef struct filter_st filter_st;
+
 int ip_filter(pcap_data_t* pdata, filter_st* fst);
 int port_filter(pcap_data_t* pdata, filter_st* fst);
 int proto_filter(pcap_data_t* pdata, filter_st* fst);

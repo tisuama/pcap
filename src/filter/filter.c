@@ -1,4 +1,6 @@
 #include "filter.h"
+#include "pcap_manager.h"
+#include "ldapexpr.h"
 
 #define MAX_PORT_LEN 12
 #define MAX_IP_LEN 128
@@ -25,9 +27,8 @@ static int __greater_value(const char* src, const char* target) {
     int size2 = strlen(target);
     if (size1 > size2 - 1) {
         return strncmp(src, target, size2 - 1) > 0;
-    } else {
-        return strncmp(src, target, size1) > 0;
     }
+    return strncmp(src, target, size1) > 0;
 }
 
 static int __compare_value_with_regex(const char* src, const char* target, filter_st* f) {
@@ -50,7 +51,10 @@ static int __compare_value_with_regex(const char* src, const char* target, filte
     case FT_LTE:
         return __greater_value(src, target) == 0 ||
                 __equal_value(src, target) == 0;
+    default:
+        assert("not support type");
     }
+    return 1;
 }
 
 static int __compare_value_with_same_length(const char* src, const char* target, filter_st* f) {
@@ -72,7 +76,10 @@ static int __compare_value_with_same_length(const char* src, const char* target,
         return ret >= 0;
     case FT_LTE:
         return ret <= 0;
+    default:
+        assert("not support type");
     }    
+    return 1;
 }
 
 static int __compare_value_with_diff_length(const char* src, const char* target, filter_st* f) {
@@ -89,10 +96,13 @@ static int __compare_value_with_diff_length(const char* src, const char* target,
     case FT_LT:
         return size1 < size2;
     case FT_GTE:
-        return size1 > size2 || strcmp(src, target) >= 0;
+        return size1 > size2 || ((size1 == size2) && strcmp(src, target) >= 0);
     case FT_LTE:
-        return size1 < size2 || strcmp(src, target) <= 0;
+        return size1 < size2 || ((size1 == size2) && strcmp(src, target) <= 0);
+    default:
+        assert("not support type");
     } 
+    return 1;
 }
 
 // 参数： src: pcap 数据 target: 表达式
@@ -109,6 +119,7 @@ static int __compare_value(const char* src, const char* target, filter_st* f) {
     } else { // size1 != size2
         return __compare_value_with_diff_length(src, target, f);    
     }
+    return 1;
 }
 
 static void __get_port_str(pcap_data_t* pdata, char* data, enum key_type ft) {
@@ -141,8 +152,8 @@ static void __get_proto_str(pcap_data_t* pdata, char* data) {
 }
 
 int ip_filter(pcap_data_t* pdata, filter_st* fst) {
-    char ip_str[MANX_IP_LEN];
-    char* value = f->s.value;
+    char ip_str[MAX_IP_LEN];
+    char* value = fst->s.value;
     __get_addr_str(pdata, ip_str, SRC_TYPE);
     int ret = 0;
     ret |= __compare_value(ip_str, value, fst);
@@ -152,7 +163,7 @@ int ip_filter(pcap_data_t* pdata, filter_st* fst) {
 }
 int port_filter(pcap_data_t* pdata, filter_st* fst) {
     char port_str[MAX_PORT_LEN];
-    char* value = f->s.value;
+    char* value = fst->s.value;
     __get_port_str(pdata, port_str, SRC_TYPE);
     int ret = 0;
     ret |= __compare_value(port_str, value, fst);
@@ -162,23 +173,23 @@ int port_filter(pcap_data_t* pdata, filter_st* fst) {
 }
 int proto_filter(pcap_data_t* pdata, filter_st* fst) {
     char proto_str[MAX_PORT_LEN];
-    char* value = f->s.value;
-    __get_proto_str(pdata, proto_str, SRC_TYPE);
+    char* value = fst->s.value;
+    __get_proto_str(pdata, proto_str);
     int ret = 0;
     ret |= __compare_value(proto_str, value, fst);
     return ret;      
 }
 int sip_filter(pcap_data_t* pdata, filter_st* fst) {
-    char ip_str[MANX_IP_LEN];
-    char* value = f->s.value;
+    char ip_str[MAX_IP_LEN];
+    char* value = fst->s.value;
     __get_addr_str(pdata, ip_str, SRC_TYPE);
     int ret = 0;
     ret |= __compare_value(ip_str, value, fst);
     return ret;  
 }
 int dip_filter(pcap_data_t* pdata, filter_st* fst) {
-    char ip_str[MANX_IP_LEN];
-    char* value = f->s.value;
+    char ip_str[MAX_IP_LEN];
+    char* value = fst->s.value;
     __get_addr_str(pdata, ip_str, DST_TYPE);
     int ret = 0;
     ret |= __compare_value(ip_str, value, fst);
@@ -186,15 +197,16 @@ int dip_filter(pcap_data_t* pdata, filter_st* fst) {
 }
 int sport_filter(pcap_data_t* pdata, filter_st* fst) {
     char port_str[MAX_PORT_LEN];
-    char* value = f->s.value;
+    char* value = fst->s.value;
     __get_port_str(pdata, port_str, SRC_TYPE);
     int ret = 0;
     ret |= __compare_value(port_str, value, fst);
+    // fprintf(stderr, "sport str: %s, value: %s, ret: %d\n", port_str, value, ret);
     return ret;
 }
 int dport_filter(pcap_data_t* pdata, filter_st* fst) {
     char port_str[MAX_PORT_LEN];
-    char* value = f->s.value;
+    char* value = fst->s.value;
     __get_port_str(pdata, port_str, DST_TYPE);
     int ret = 0;
     ret |= __compare_value(port_str, value, fst);

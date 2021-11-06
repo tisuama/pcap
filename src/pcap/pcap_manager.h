@@ -12,7 +12,6 @@
 #include <netinet/udp.h>
 #include <arpa/inet.h>
 
-#include "filter.h"
 
 #define MAX_PACKET_LEN 65536
 
@@ -49,7 +48,7 @@ typedef struct l2_head_st {
 	((const unsigned char *)&addr)[2], \
 	((const unsigned char *)&addr)[3]
 
-typedef struct pacp_data {
+typedef struct pcap_data {
 	uint8_t proto;
 	uint16_t source;
 	uint16_t dest;
@@ -57,20 +56,22 @@ typedef struct pacp_data {
 	uint32_t daddr;
 }pcap_data_t;
 
+typedef struct filter_st filter_st;
 typedef struct pcap_handle {
 	FILE* pcap_fd;
 	filter_st* fst;
-	pcap_info_st pcap_header;
+	pcap_info_st* pcap_header;
 }pcap_handle_t;
 
 typedef void (*pcap_cb)(pcap_data_t* pcap_data);
-typedef void (*hook)(pcap_data_t* pcap_data, const char* value, filter_st* fst);
+typedef int (*hook)(pcap_data_t* pcap_data, filter_st* fst);
+
 // 对外暴露的接口
 pcap_handle_t* pcap_open(const char* file_path, const char* fst_str);
-int pcap_register(const char* filter_name, hook hk);
-int  pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb);
-int  pcap_process_forward(pcap_handle_t* handle, pcap_data_t* data);
-void pcap_destory_handle(pcap_handle_t* handle);
+int   pcap_register(const char* filter_name, hook hk);
+void  pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb);
+int   pcap_process_forward(pcap_handle_t* handle, pcap_data_t* data);
+void  pcap_destory_handle(pcap_handle_t* handle);
 
 // pcap_request_init
 // pcap_destory_request

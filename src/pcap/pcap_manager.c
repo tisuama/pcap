@@ -1,7 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+
 #include "pcap_manager.h"
+#include "ldapexpr.h"
 
 #define PCAP_MAGIC 0xa1b2c3d4
 #define PCAP_SUPPORT_LINK_TYPE 1
@@ -44,7 +46,7 @@ typedef struct registed_hook{
     hook hook_func;
 } registed_hook_t;
 
-registed_hook_t registed_hooks[MAX_registed_hook];
+registed_hook_t registed_hooks[MAX_REGISTED_HOOK];
 
 static int  __pcap_read_done(read_context_t* ctx);
 static void __pcap_read_data(read_context_t* ctx);
@@ -52,19 +54,22 @@ static int  __read_packet(read_context_t* ctx);
 
 
 pcap_handle_t*  pcap_open(const char* file_path, const char* fst_str) {
-    pcap_info_st info;
+    pcap_info_st* info = (struct pcap_info_st*)malloc(sizeof(pcap_info_st));
     FILE* fd = fopen(file_path, "rb");
     filter_st* st = NULL;
+    if (fd == NULL) {
+        goto fail;
+    }
     // fprintf(stderr, "file info: %s\n", file_path);
-	if (fread(&info, sizeof(info), 1, fd) != 1) {
+	if (fread(info, sizeof(*info), 1, fd) != 1) {
 		goto fail;
 	}
 	
-	if (info.magic != PCAP_MAGIC) {
+	if (info->magic != PCAP_MAGIC) {
 		goto fail;
 	}
 	
-	if (info.linktype != PCAP_SUPPORT_LINK_TYPE) {
+	if (info->linktype != PCAP_SUPPORT_LINK_TYPE) {
 		goto fail;
 	}
 
@@ -76,7 +81,7 @@ pcap_handle_t*  pcap_open(const char* file_path, const char* fst_str) {
     }
 
     for (int i = 0; i < MAX_REGISTED_HOOK; i++) {
-        memset(registed_hooks[i].hook_name, 0, MAX_COMPAR_LEN);
+        memset(registed_hooks[i].hook_name, 0, MAX_HOOK_NAME_LEN);
         registed_hooks[i].hook_func = NULL;
     }
     pcap_handle_t* handle = (pcap_handle_t*)malloc(sizeof(pcap_handle_t));
@@ -87,12 +92,28 @@ pcap_handle_t*  pcap_open(const char* file_path, const char* fst_str) {
 
 fail:
     fprintf(stderr, "pcap init failed\n");
-	fclose(fd); 
+    if (fd) {
+	    fclose(fd);
+        fd = NULL;
+    } 
 	return NULL;
 }
 
 void pcap_destory_handle(pcap_handle_t* handle) {
+    if (handle == NULL) {
+        return ;
+    }
+    if (handle->fst) {
+        filter_destroy(handle->fst);
+        handle->fst = NULL;
+    }
+    if (handle->pcap_header) {
+        free(handle->pcap_header);
+        handle->pcap_header = NULL;
+    }
+    fclose(handle->pcap_fd);
     free(handle);
+    handle = NULL;
 }
 
 static int __read_packet(read_context_t* ctx) {
@@ -118,7 +139,7 @@ static int __read_packet(read_context_t* ctx) {
 
 // read_packet
 static void __pcap_read_data(read_context_t* ctx) {
-    uint32_t len = ctx->handle->pcap_header.snaplen;
+    uint32_t len = ctx->handle->pcap_header->snaplen;
     packet_head_st head;
     char data[MAX_PACKET_LEN];
     if (fread(&head, sizeof(head), 1, ctx->handle->pcap_fd) != 1) {
@@ -184,13 +205,12 @@ fail:
 
 static int __check_value(filter_st* f,  pcap_data_t* pdata) {
     char* key = f->s.subject;
-    char* value = f->s.value;
     for (int i = 0; i < MAX_REGISTED_HOOK; i++) {
-        if (registed_hook[i].hook_func == NULL) {
+        if (registed_hooks[i].hook_func == NULL) {
             return 1;
         }
-        if (strmcp(key, registed_hook[i].hook_name) == 0) {
-            return registed_hook[i].hook_func(pdata, f);
+        if (strcmp(key, registed_hooks[i].hook_name) == 0) {
+            return registed_hooks[i].hook_func(pdata, f);
         }
     }
     return 1;
@@ -236,7 +256,7 @@ static int __pcap_read_done(read_context_t* ctx) {
     return 1;
 }
 
-int pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb) {
+void pcap_process_poll(pcap_handle_t* handle, pcap_data_t* data, pcap_cb cb) {
     while (1) { 
         read_context_t read_ctx;
         read_ctx.pdata = data;
@@ -258,17 +278,20 @@ int pcap_process_forward(pcap_handle_t* handle, pcap_data_t* data) {
     read_ctx.type = FORWARD;
     read_ctx.state = PCAP_READ_DATA;
     int ret = __read_packet(&read_ctx);
-    if (ret != 1) {
-        return 0;
+    if (ret == -1) {
+        return ret;
     }
     return 1;
 }
 
 int pcap_register(const char* filter_name, hook hk) {
     for (int i = 0; i < MAX_REGISTED_HOOK; i++) {
-        if (registed_hook[i].hook_func == NULL) {
-            registed_hook[i].hook_func = hk;
-            memcpy(register_hook[i].hook_name, filter_name, strlen(filter_name));
+        if (registed_hooks[i].hook_func == NULL) {
+            // fprintf(stderr, "pcap register, filter_name: %s, hk: %p\n", filter_name, hk);
+            registed_hooks[i].hook_func = hk;
+            memcpy(registed_hooks[i].hook_name, filter_name, strlen(filter_name));
+            return 1;
         }
     }
+    return 0;
 }

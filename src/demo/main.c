@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include "pcap_manager.h"
+#include "filter.h"
+#include "ldapexpr.h"
 
 static void print_packet(pcap_data_t* data)
 {
@@ -26,13 +28,19 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Pcap init failed\n");
 		return -1;
 	}
-	int ret = 0;
+	
+	// 注册比较函数
+	int ret;
 	ret = pcap_register("ip", ip_filter);
 	ret = pcap_register("port", port_filter);
-
+	ret = pcap_register("proto", proto_filter);  
+    ret = pcap_register("sport", sport_filter);
+    ret = pcap_register("dport", dport_filter);
+    ret = pcap_register("sip", sip_filter);
+    ret = pcap_register("dip", dip_filter);  	
 	pcap_data_t data;
 	// read POLL
-	ret = pcap_process_poll(handle, &data, print_packet);
+	pcap_process_poll(handle, &data, print_packet);
 
 	// destory
 	pcap_destory_handle(handle);
